@@ -1,6 +1,9 @@
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -122,5 +125,53 @@ class Testing{
 		System.out.println(fragmentMap);
 		System.out.println(messageMap);
 		System.out.println(lifeLineMap);
+
+
+		/*
+		 *  We are constructing Scenarios
+		 */
+
+		LinkedList<HashMap<String, String>> scenarios = new LinkedList<HashMap<String, String>>();
+
+		ArrayList<String> visited = new ArrayList<String>();
+
+		boolean finish = false;
+		boolean add = false;
+		Map.Entry<String,HashMap<String, String>> entry=fragmentMap.entrySet().iterator().next();
+		
+		String messageId = entry.getKey();
+		HashMap<String, String> value = entry.getValue();
+				
+		visited.add(messageId);
+		while(!finish){
+			String send_class = value.get("MessageSend");
+			String recv_class = value.get("MessageRecv");
+			
+			HashMap<String, String> innerHashMap = new HashMap<String, String>();
+			innerHashMap.put(messageId, send_class + "$" + recv_class);
+			for(int i = 1; i < fragmentMap.size(); i++){
+				String current = (String) fragmentMap.keySet().toArray()[i];
+				
+				String curr_send = fragmentMap.get(current).get("MessageSend"+Integer.toString(i-1));
+				String curr_recv = fragmentMap.get(current).get("MessageRecv"+Integer.toString(i-1));
+				if(!visited.contains(current)){
+					if(recv_class.equals(curr_send)){
+						innerHashMap.put(current, curr_send + "$" + curr_recv);
+						visited.add(current);
+						send_class = curr_send;
+						recv_class = curr_recv;
+					}
+					else{
+						//add = true;
+						//scenarios.add(innerHashMap);
+						break;
+					}
+				}
+			}
+			scenarios.add(innerHashMap);
+			if(visited.size() == fragmentMap.size())
+				finish = true;
+		}
+		System.out.println(scenarios);
 	}
 }
