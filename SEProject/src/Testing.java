@@ -2,6 +2,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
 
@@ -54,12 +55,12 @@ class Testing{
 		 * Initialize various HashMaps for all the XML tags
 		 */
 		//{ Key, {Key, Value}} = {MsgId, {Send/Receive, LifeLineId}}
-		HashMap<String, HashMap<String, String>> fragmentMap =
-				new HashMap<String, HashMap<String, String>>();
+		LinkedHashMap<String, LinkedHashMap<String, String>> fragmentMap =
+				new LinkedHashMap<String, LinkedHashMap<String, String>>();
 		//{ Key, Value}} = {MsgId, MsgName}
-		HashMap<String, String> messageMap = new HashMap<String, String>();
+		LinkedHashMap<String, String> messageMap = new LinkedHashMap<String, String>();
 		//{ Key, Value}} = {ClassId, ClassName}
-		HashMap<String, String> lifeLineMap = new HashMap<String, String>();
+		LinkedHashMap<String, String> lifeLineMap = new LinkedHashMap<String, String>();
 
 		/*
 		 * Loop over Fragment List to get all relevant information
@@ -77,7 +78,7 @@ class Testing{
 						String classId = nnm.getNamedItem("covered").getTextContent();
 						if(!fragmentMap.containsKey(messageId)){
 							//create inner HashMap, with key = send/receive and value = classId
-							HashMap<String, String> innerMap = new HashMap<String, String>();
+							LinkedHashMap<String, String> innerMap = new LinkedHashMap<String, String>();
 							innerMap.put(name, classId);
 							fragmentMap.put(messageId, innerMap);
 						}
@@ -87,6 +88,8 @@ class Testing{
 							containedHashMap.put(name, classId);
 						}
 					}
+					//System.out.println(nnm.item(j).getNodeName());
+					//System.out.println();
 				}
 			}
 		}
@@ -123,31 +126,31 @@ class Testing{
 			}
 		}
 		System.out.println(fragmentMap);
-		System.out.println(messageMap);
-		System.out.println(lifeLineMap);
+		//System.out.println(messageMap);
+		//System.out.println(lifeLineMap);
 
 
 		/*
 		 *  We are constructing Scenarios
 		 */
 
-		LinkedList<HashMap<String, String>> scenarios = new LinkedList<HashMap<String, String>>();
+		LinkedList<LinkedHashMap<String, String>> scenarios = new LinkedList<LinkedHashMap<String, String>>();
 
 		ArrayList<String> visited = new ArrayList<String>();
 
 		boolean finish = false;
 		boolean add = false;
-		Map.Entry<String,HashMap<String, String>> entry=fragmentMap.entrySet().iterator().next();
+		Map.Entry<String,LinkedHashMap<String, String>> entry=fragmentMap.entrySet().iterator().next();
 		
 		String messageId = entry.getKey();
-		HashMap<String, String> value = entry.getValue();
+		LinkedHashMap<String, String> value = entry.getValue();
 				
 		visited.add(messageId);
 		while(!finish){
 			String send_class = value.get("MessageSend");
 			String recv_class = value.get("MessageRecv");
 			
-			HashMap<String, String> innerHashMap = new HashMap<String, String>();
+			LinkedHashMap<String, String> innerHashMap = new LinkedHashMap<String, String>();
 			innerHashMap.put(messageId, send_class + "$" + recv_class);
 			for(int i = 1; i < fragmentMap.size(); i++){
 				String current = (String) fragmentMap.keySet().toArray()[i];
@@ -172,6 +175,6 @@ class Testing{
 			if(visited.size() == fragmentMap.size())
 				finish = true;
 		}
-		System.out.println(scenarios);
+		//System.out.println(scenarios);
 	}
 }
