@@ -1,7 +1,6 @@
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -10,7 +9,6 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
-import org.apache.commons.io.FileUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.NodeList;
@@ -20,48 +18,19 @@ import org.xml.sax.SAXException;
 
 class Testing{
 
-	@SuppressWarnings("deprecation")
-	public static String readXMLFile() throws IOException
-	{
-		/*
-		 * readXMLFile - reads the UML file and returns the content
-		 * as a string.
-		 *
-		 * */
-		File file = new File("./src/UMLInput/model.uml");
-		String content = "";
-		if (file.isFile() && file.getName().endsWith(".uml")) {
-			content = FileUtils.readFileToString(file);
-		}
-		return content;
-	}
+	/*
+	 * Initialize various HashMaps for all the XML tags
+	 */
+	//{ Key, {Key, Value}} = {MsgId, {Send/Receive, LifeLineId}}
+	static LinkedHashMap<String, LinkedHashMap<String, String>> fragmentMap =
+			new LinkedHashMap<String, LinkedHashMap<String, String>>();
+	//{ Key, Value}} = {MsgId, MsgName}
+	static LinkedHashMap<String, String> messageMap = new LinkedHashMap<String, String>();
+	//{ Key, Value}} = {ClassId, ClassName}
+	static LinkedHashMap<String, String> lifeLineMap = new LinkedHashMap<String, String>();
+	static LinkedList<LinkedHashMap<String, String>> scenarios = new LinkedList<LinkedHashMap<String, String>>();
 
-	public static void main(String[] args) throws IOException, SAXException, ParserConfigurationException {
-		// Read File
-		File inputFile = new File("./src/UMLInput/model.uml");
-
-		// Create Document Object from XML file
-		DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-		DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-		Document doc = dBuilder.parse(inputFile);
-		doc.getDocumentElement().normalize();
-
-		// Extract the list of elements based on their tag-names
-		NodeList lifelineList = doc.getElementsByTagName("lifeline");
-		NodeList fragmentList = doc.getElementsByTagName("fragment");
-		NodeList messageList = doc.getElementsByTagName("message");
-
-		/*
-		 * Initialize various HashMaps for all the XML tags
-		 */
-		//{ Key, {Key, Value}} = {MsgId, {Send/Receive, LifeLineId}}
-		LinkedHashMap<String, LinkedHashMap<String, String>> fragmentMap =
-				new LinkedHashMap<String, LinkedHashMap<String, String>>();
-		//{ Key, Value}} = {MsgId, MsgName}
-		LinkedHashMap<String, String> messageMap = new LinkedHashMap<String, String>();
-		//{ Key, Value}} = {ClassId, ClassName}
-		LinkedHashMap<String, String> lifeLineMap = new LinkedHashMap<String, String>();
-
+	public static void generateFragments(NodeList fragmentList){
 		/*
 		 * Loop over Fragment List to get all relevant information
 		 * into fragmentMap
@@ -93,12 +62,12 @@ class Testing{
 							fragmentMap.put(messageId, containedHashMap);
 						}
 					}
-					//System.out.println(nnm.item(j).getNodeName());
-					//System.out.println();
 				}
 			}
 		}
+	}
 
+	public static void generateMessageMap(NodeList messageList){
 		/*
 		 * Loop over Message List to get all relevant information
 		 * into messagetMap
@@ -114,7 +83,9 @@ class Testing{
 				}
 			}
 		}
+	}
 
+	public static void generateLifelineMap(NodeList lifelineList){
 		/*
 		 * Loop over Life line(class) List to get all relevant information
 		 * into lifeLineMap
@@ -130,21 +101,16 @@ class Testing{
 				}
 			}
 		}
-		System.out.println(fragmentMap);
-		System.out.println(messageMap);
-		System.out.println(lifeLineMap);
+	}
 
-
+	public static void generateScenarios(){
 		/*
-		 *  We are constructing Scenarios
+		 * Construct Scenarios
 		 */
-
-		LinkedList<LinkedHashMap<String, String>> scenarios = new LinkedList<LinkedHashMap<String, String>>();
 
 		ArrayList<String> visited = new ArrayList<String>();
 
 		boolean finish = false;
-		boolean add = false;
 		Map.Entry<String,LinkedHashMap<String, String>> entry=fragmentMap.entrySet().iterator().next();
 		
 		String messageId = entry.getKey();
@@ -170,8 +136,6 @@ class Testing{
 						recv_class = curr_recv;
 					}
 					else{
-						//add = true;
-						//scenarios.add(innerHashMap);
 						break;
 					}
 				}
@@ -180,6 +144,36 @@ class Testing{
 			if(visited.size() == fragmentMap.size())
 				finish = true;
 		}
+	}
+
+	public static void main(String[] args) throws IOException, SAXException, ParserConfigurationException {
+		// Read File
+		File inputFile = new File("./src/UMLInput/model.uml");
+
+		// Create Document Object from XML file
+		DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+		DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+		Document doc = dBuilder.parse(inputFile);
+		doc.getDocumentElement().normalize();
+
+		// Extract the list of elements based on their tag-names
+		NodeList lifelineList = doc.getElementsByTagName("lifeline");
+		NodeList fragmentList = doc.getElementsByTagName("fragment");
+		NodeList messageList = doc.getElementsByTagName("message");
+
+		/*
+		 * Generate Fragment, Message, LifeLine maps
+		 */
+		generateFragments(fragmentList);
+		generateMessageMap(messageList);
+		generateLifelineMap(lifelineList);
+
+		
+		System.out.println(fragmentMap);
+		System.out.println(messageMap);
+		System.out.println(lifeLineMap);
+
+		generateScenarios();
 		System.out.println(scenarios);
 	}
 }
