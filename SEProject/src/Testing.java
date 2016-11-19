@@ -74,7 +74,11 @@ class Testing{
 				for(int j = 0; j < nnm.getLength(); j++){
 					if(nnm.item(j).getNodeName() == "message"){
 						String messageId = nnm.getNamedItem("message").getTextContent();
-						String name = nnm.getNamedItem("name").getTextContent();
+						String name = "";
+						if(nnm.getNamedItem("name").getTextContent().contains("Send"))
+							name = "Send";
+						else
+							name = "Recv";
 						String classId = nnm.getNamedItem("covered").getTextContent();
 						if(!fragmentMap.containsKey(messageId)){
 							//create inner HashMap, with key = send/receive and value = classId
@@ -83,9 +87,10 @@ class Testing{
 							fragmentMap.put(messageId, innerMap);
 						}
 						else{
-							HashMap<String, String> containedHashMap =
+							LinkedHashMap<String, String> containedHashMap =
 									fragmentMap.get(messageId);
 							containedHashMap.put(name, classId);
+							fragmentMap.put(messageId, containedHashMap);
 						}
 					}
 					//System.out.println(nnm.item(j).getNodeName());
@@ -126,8 +131,8 @@ class Testing{
 			}
 		}
 		System.out.println(fragmentMap);
-		//System.out.println(messageMap);
-		//System.out.println(lifeLineMap);
+		System.out.println(messageMap);
+		System.out.println(lifeLineMap);
 
 
 		/*
@@ -147,16 +152,16 @@ class Testing{
 				
 		visited.add(messageId);
 		while(!finish){
-			String send_class = value.get("MessageSend");
-			String recv_class = value.get("MessageRecv");
-			
+			String send_class = value.get("Send");
+			String recv_class = value.get("Recv");
 			LinkedHashMap<String, String> innerHashMap = new LinkedHashMap<String, String>();
 			innerHashMap.put(messageId, send_class + "$" + recv_class);
 			for(int i = 1; i < fragmentMap.size(); i++){
 				String current = (String) fragmentMap.keySet().toArray()[i];
 				
-				String curr_send = fragmentMap.get(current).get("MessageSend"+Integer.toString(i-1));
-				String curr_recv = fragmentMap.get(current).get("MessageRecv"+Integer.toString(i-1));
+				String curr_send = fragmentMap.get(current).get("Send");
+				String curr_recv = fragmentMap.get(current).get("Recv");
+				
 				if(!visited.contains(current)){
 					if(recv_class.equals(curr_send)){
 						innerHashMap.put(current, curr_send + "$" + curr_recv);
@@ -175,6 +180,6 @@ class Testing{
 			if(visited.size() == fragmentMap.size())
 				finish = true;
 		}
-		//System.out.println(scenarios);
+		System.out.println(scenarios);
 	}
 }
