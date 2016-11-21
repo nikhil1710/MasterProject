@@ -4,11 +4,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
-
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.NodeList;
@@ -41,6 +39,62 @@ class Testing{
 				Element eElement = (Element) nNode;
 				NamedNodeMap nnm = eElement.getAttributes();
 				for(int j = 0; j < nnm.getLength(); j++){
+					if(nnm.item(j).getNodeName() == "interactionOperator"){
+						NodeList operandList = nNode.getChildNodes();
+						for(int k = 0; k < operandList.getLength(); k++){
+							if(operandList.item(k).getNodeName() == "operand"){
+								String guard = "";
+								NodeList operandFragments = operandList.item(k).getChildNodes();
+								for(int x = 0; x < operandFragments.getLength(); x++){
+									if(operandFragments.item(x).getNodeName() == "guard"){
+										Node operandGuard = operandFragments.item(x);
+										if(operandGuard.getNodeType() == Node.ELEMENT_NODE){
+											Element guardElement = (Element) operandGuard;
+											NamedNodeMap guardMap = guardElement.getAttributes();
+											for(int y = 0; y < guardMap.getLength(); y++){
+												if(guardMap.item(y).getNodeName() == "name"){
+													guard = guardMap.getNamedItem("name").getTextContent();
+												}
+											}
+										}
+									}
+								}
+								for(int x = 0; x < operandFragments.getLength(); x++){
+									if(operandFragments.item(x).getNodeName() == "fragment"){
+										Node operandFragment = operandFragments.item(x);
+										if(operandFragment.getNodeType() == Node.ELEMENT_NODE){
+											Element ofElement = (Element) operandFragment;
+											NamedNodeMap ofnnm = ofElement.getAttributes();
+											for(int y = 0; y < ofnnm.getLength(); y++){
+												if(ofnnm.item(y).getNodeName() == "message"){
+													String opFragMessageId = ofnnm.getNamedItem("message").getTextContent() + "#" +guard;
+													String opFragName = "";
+													if(ofnnm.getNamedItem("name").getTextContent().contains("Send"))
+														opFragName = "Send";
+													else
+														opFragName = "Recv";
+													String opFragClassId = ofnnm.getNamedItem("covered").getTextContent();
+													if(!fragmentMap.containsKey(opFragMessageId)){
+														//create inner HashMap, with key = send/receive and value = classId
+														LinkedHashMap<String, String> operatorInnerMap = new LinkedHashMap<String, String>();
+														operatorInnerMap.put(opFragName, opFragClassId);
+														fragmentMap.put(opFragMessageId, operatorInnerMap);
+													}
+													else{
+														LinkedHashMap<String, String> operatorContainedHashMap =
+																fragmentMap.get(opFragMessageId);
+														operatorContainedHashMap.put(opFragName, opFragClassId);
+														fragmentMap.put(opFragMessageId, operatorContainedHashMap);
+													}
+												}
+											}
+										}
+										i++;
+									}
+								}
+							}
+						}
+					}
 					if(nnm.item(j).getNodeName() == "message"){
 						String messageId = nnm.getNamedItem("message").getTextContent();
 						String name = "";
@@ -148,7 +202,7 @@ class Testing{
 
 	public static void main(String[] args) throws IOException, SAXException, ParserConfigurationException {
 		// Read File
-		File inputFile = new File("./src/UMLInput/model.uml");
+		File inputFile = new File("./src/UMLInput/model2.uml");
 
 		// Create Document Object from XML file
 		DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
@@ -173,7 +227,7 @@ class Testing{
 		System.out.println(messageMap);
 		System.out.println(lifeLineMap);
 
-		generateScenarios();
-		System.out.println(scenarios);
+		//generateScenarios();
+		//System.out.println(scenarios);
 	}
 }
