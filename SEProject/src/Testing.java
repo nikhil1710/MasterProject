@@ -1,6 +1,5 @@
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -22,7 +21,6 @@ import org.w3c.dom.Node;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 
-import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JClassAlreadyExistsException;
 import com.sun.codemodel.JCodeModel;
 import com.sun.codemodel.JDefinedClass;
@@ -481,20 +479,20 @@ class Testing{
 	private static void generateGraph() {
 		// TODO Auto-generated method stub
 		System.setProperty("org.graphstream.ui.renderer", "org.graphstream.ui.j2dviewer.J2DGraphRenderer");
-		Graph graph = new MultiGraph("Test");
+		Graph graph[] = new MultiGraph[final_scenarios.size()];
 
-		graph.setStrict(false);
 
 		for(int i=0;i<final_scenarios.size();i++){
+			int number=i+1;
+			graph[i]=new MultiGraph("final_scenarios"+number);
+			graph[i].setStrict(false);
 			HashMap<String, String> sequences = final_scenarios.get(i);
 			//System.out.println(sequences);
 
-
-			graph.addNode("Start");
+			graph[i].addNode("Start");
 			int count=1;
 
-
-			for ( Map.Entry<String, String> val : sequences.entrySet()) {
+			for (Map.Entry<String, String> val : sequences.entrySet()) {
 				String messageFunction = val.getKey();
 				String source_destination = val.getValue();
 
@@ -506,39 +504,39 @@ class Testing{
 				String destination="Node"+" "+lifeLineMap.get(s_d[1]);
 
 				//System.out.println("Message:"+message+"Source:"+source+"Destination:"+destination);
-				graph.addNode(source);
-				graph.addNode(destination);
-				graph.addEdge(count+":"+message,source,destination);
+				graph[i].addNode(source);
+				graph[i].addNode(destination);
+				graph[i].addEdge(count+":"+message,source,destination);
 				count++;
 
 			}
-			org.graphstream.graph.Node start = graph.getNode(1);
-			graph.addEdge("0:Start", "Start",start.toString());
+			org.graphstream.graph.Node start = graph[i].getNode(1);
+			graph[i].addEdge("0:Start", "Start",start.toString());
+
+			graph[i].addAttribute("ui.stylesheet", 
+					"node {shape: box;fill-color: blue, green, red;text-mode:normal;text-background-mode: plain; fill-mode: dyn-plain;text-size:15;}"
+							+ "edge {text-size:15;}");
+
+			for(Edge e:graph[i].getEachEdge()) {
+
+				e.addAttribute("ui.label", e.getId());
+
+			}
+			for(org.graphstream.graph.Node n:graph[i]) {
+				//System.out.println(n.getId());
+				n.addAttribute("ui.style", "fill-color:rgba(255,0,0,128);");
+				//	n.addAttribute("ui.style", "rounded-box");
+
+				n.addAttribute("ui.label", n.getId());
+			}
+
+			graph[i].display();		
 		}
-		graph.addAttribute("ui.stylesheet", 
-				"node {shape: box;fill-color: blue, green, red;text-mode:normal;text-background-mode: plain; fill-mode: dyn-plain;text-size:15;}"
-						+ "edge {text-size:15;}");
-
-		for(Edge e:graph.getEachEdge()) {
-
-			e.addAttribute("ui.label", e.getId());
-
-		}
-		for(org.graphstream.graph.Node n:graph) {
-			//System.out.println(n.getId());
-			n.addAttribute("ui.style", "fill-color:rgba(255,0,0,128);");
-			//	n.addAttribute("ui.style", "rounded-box");
-
-			n.addAttribute("ui.label", n.getId());
-		}
-
-		graph.display();		
-
 	}
 
 	public static void main(String[] args) throws IOException, SAXException, ParserConfigurationException, JClassAlreadyExistsException {
 		// Read File
-		File inputFile = new File("./src/UMLInput/model_loop.uml");
+		File inputFile = new File("./src/UMLInput/model.uml");
 
 		// Create Document Object from XML file
 		DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
