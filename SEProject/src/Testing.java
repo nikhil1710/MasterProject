@@ -499,12 +499,11 @@ class Testing{
 		// TODO Auto-generated method stub
 		System.setProperty("org.graphstream.ui.renderer", "org.graphstream.ui.j2dviewer.J2DGraphRenderer");
 		Graph graph[] = new MultiGraph[final_scenarios.size()];
-
-
 		for(int i=0;i<final_scenarios.size();i++){
 			int number=i+1;
 			graph[i]=new MultiGraph("final_scenarios"+number);
 			graph[i].setStrict(false);
+			
 			HashMap<String, String> sequences = final_scenarios.get(i);
 			//System.out.println(sequences);
 
@@ -550,9 +549,26 @@ class Testing{
 			}
 
 			graph[i].display();		
+			//System.out.println(graph[i].toString());
 		}
 	}
 
+	public static boolean deleteDirectory(File directory) {
+	    if(directory.exists()){
+	        File[] files = directory.listFiles();
+	        if(null!=files){
+	            for(int i=0; i<files.length; i++) {
+	                if(files[i].isDirectory()) {
+	                    deleteDirectory(files[i]);
+	                }
+	                else {
+	                    files[i].delete();
+	                }
+	            }
+	        }
+	    }
+	    return(directory.delete());
+	}
 	public static void main(String[] args) throws IOException, SAXException, ParserConfigurationException, JClassAlreadyExistsException {
 		// Read File
 		File inputFile = new File("./src/UMLInput/model.uml");
@@ -582,8 +598,10 @@ class Testing{
 
 		generateScenarios();
 		//System.out.println(loopHashMap);
+		File file = new File("target");
+		deleteDirectory(file);
 		generateTestSuite();
-
+		
 		//Creates visual graph
 		generateGraph();
 	}
