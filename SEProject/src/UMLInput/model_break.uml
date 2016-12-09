@@ -30,7 +30,11 @@
         <fragment xmi:type="uml:MessageOccurrenceSpecification" xmi:id="_ueaK8K67EeaoV4fwTDH_fA" name="MessageSend" covered="_wMNmAK66EeaoV4fwTDH_fA" message="_ueZj4K67EeaoV4fwTDH_fA"/>
         <fragment xmi:type="uml:MessageOccurrenceSpecification" xmi:id="_xD0uAK67EeaoV4fwTDH_fA" name="MessageRecv1" covered="_wMNmAK66EeaoV4fwTDH_fA" message="_xDy40K67EeaoV4fwTDH_fA"/>
         <fragment xmi:type="uml:MessageOccurrenceSpecification" xmi:id="_xD0G8K67EeaoV4fwTDH_fA" name="MessageSend1" covered="_wavKMK66EeaoV4fwTDH_fA" message="_xDy40K67EeaoV4fwTDH_fA"/>
-        <guard xmi:type="uml:InteractionConstraint" xmi:id="_3v4y0K66EeaoV4fwTDH_fA" name="ELSE"/>
+        <guard xmi:type="uml:InteractionConstraint" xmi:id="_3v4y0K66EeaoV4fwTDH_fA" name="ELSE">
+          <ownedComment xmi:type="uml:Comment" xmi:id="_pnk_EL2GEeaYcawzdQva-g" annotatedElement="_3v4y0K66EeaoV4fwTDH_fA">
+            <body>Break</body>
+          </ownedComment>
+        </guard>
       </operand>
     </fragment>
     <fragment xmi:type="uml:ActionExecutionSpecification" xmi:id="_0r_ukK67EeaoV4fwTDH_fA" name="ActionExecSpec2" covered="_wavKMK66EeaoV4fwTDH_fA" finish="_0sAVoK67EeaoV4fwTDH_fA" start="_BwLWkK68EeaoV4fwTDH_fA"/>

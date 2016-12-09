@@ -5,5 +5,8 @@
 	<classpathentry kind="lib" path="H:/Softwares/Java Libraries/java-json.jar"/>
 	<classpathentry kind="lib" path="H:/Softwares/Java Libraries/commons-io-2.5/commons-io-2.5.jar"/>
 	<classpathentry kind="lib" path="H:/Softwares/Java Libraries/commons-io-2.5/commons-io-2.5-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Nikhil Reddy/Desktop/gs-core-1.3/gs-core-1.3.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Nikhil Reddy/Desktop/gs-ui-1.3/gs-ui-1.3.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Nikhil Reddy/Desktop/codemodel-2.4.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

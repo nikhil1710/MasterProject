@@ -1,18 +1,28 @@
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
+
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+
+import org.graphstream.graph.Edge;
+import org.graphstream.graph.Graph;
+import org.graphstream.graph.implementations.MultiGraph;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Node;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
+
+import com.sun.codemodel.JClassAlreadyExistsException;
+import com.sun.codemodel.JCodeModel;
+import com.sun.codemodel.JDefinedClass;
+import com.sun.codemodel.JMethod;
 
 class Testing{
 
@@ -27,6 +37,7 @@ class Testing{
 	//{ Key, Value}} = {ClassId, ClassName}
 	static LinkedHashMap<String, String> lifeLineMap = new LinkedHashMap<String, String>();
 	static LinkedList<LinkedHashMap<String, String>> scenarios = new LinkedList<LinkedHashMap<String, String>>();
+	static LinkedList<LinkedHashMap<String, String>> final_scenarios = new LinkedList<LinkedHashMap<String, String>>();
 
 	public static void generateFragments(NodeList fragmentList){
 		/*
@@ -40,6 +51,7 @@ class Testing{
 				NamedNodeMap nnm = eElement.getAttributes();
 				for(int j = 0; j < nnm.getLength(); j++){
 					if(nnm.item(j).getNodeName() == "interactionOperator"){
+						System.out.println(nnm.getNamedItem("interactionOperator").getTextContent());
 						NodeList operandList = nNode.getChildNodes();
 						for(int k = 0; k < operandList.getLength(); k++){
 							if(operandList.item(k).getNodeName() == "operand"){
@@ -48,12 +60,27 @@ class Testing{
 								for(int x = 0; x < operandFragments.getLength(); x++){
 									if(operandFragments.item(x).getNodeName() == "guard"){
 										Node operandGuard = operandFragments.item(x);
+										NodeList guardList = operandFragments.item(x).getChildNodes();
 										if(operandGuard.getNodeType() == Node.ELEMENT_NODE){
 											Element guardElement = (Element) operandGuard;
 											NamedNodeMap guardMap = guardElement.getAttributes();
 											for(int y = 0; y < guardMap.getLength(); y++){
 												if(guardMap.item(y).getNodeName() == "name"){
 													guard = guardMap.getNamedItem("name").getTextContent();
+												}
+											}
+											if(!guard.equals("")){
+												for(int u = 0; u < guardList.getLength(); u++){
+													if(guardList.item(u).getNodeName() == "ownedComment"){
+														NodeList bodyList = guardList.item(u).getChildNodes();
+														for(int v = 0; v < bodyList.getLength(); v++){
+															if(bodyList.item(v).getFirstChild() != null){
+																if(bodyList.item(v).getFirstChild().getTextContent().equals("Break")){
+																	guard += "#" + "break";
+																}
+															}
+														}
+													}
 												}
 											}
 										}
@@ -157,52 +184,259 @@ class Testing{
 		}
 	}
 
+	private static void addMsgToScenarios(String messageId, String send, String recv){
+		LinkedHashMap<String, String> innerHashMap = null;
+		if(scenarios.size() == 0){
+			innerHashMap = new LinkedHashMap<String, String>();
+			innerHashMap.put(messageId, send + "#" + recv);
+			scenarios.add(innerHashMap);
+			//System.out.println("In if.. " + scenarios.size());
+		}
+		else{
+			//System.out.println("In else " + scenarios.size());
+			for(int i = 0; i < scenarios.size(); i++){
+				innerHashMap = scenarios.get(i);
+				String previous_send = null;
+				for(String message : innerHashMap.keySet()){
+					previous_send = innerHashMap.get(message).split("#")[1];
+				}
+				if(previous_send.equals(send)){
+					innerHashMap.put(messageId, send + "#" + recv);
+				}
+			}
+		}
+	}
+
+	private static void addAltMsgToScenarios(LinkedHashMap<String, LinkedList<String>> altMap){
+		//LinkedList<LinkedHashMap<String, String>> temp = new LinkedList<LinkedHashMap<String, String>>(scenarios);
+		LinkedList<LinkedHashMap<String, String>> temp = new LinkedList<LinkedHashMap<String, String>>();
+		temp=DeepClone.deepClone(scenarios);
+		scenarios.clear();
+		LinkedList<LinkedHashMap<String, String>> altTemp = new LinkedList<LinkedHashMap<String, String>>();
+		for(String altKey : altMap.keySet()){
+			altTemp = DeepClone.deepClone(temp);
+			LinkedList<String> altMessages = altMap.get(altKey);
+			boolean isBreak = (altKey.split("#").length == 2)? true : false;
+			for(int j = 0; j < altMessages.size(); j++){
+				String messageSplit[] = altMessages.get(j).split("#");
+				String messageId = messageSplit[0];
+				String send = messageSplit[1];
+				String recv = messageSplit[2];
+
+				for(int k = 0; k < altTemp.size(); k++){
+					LinkedHashMap<String, String> innerHashMap = null;
+					if(altTemp.size() == 0){
+						innerHashMap = new LinkedHashMap<String, String>();
+						innerHashMap.put(messageId, send + "#" + recv);
+						altTemp.add(innerHashMap);
+					}
+					else{
+						for(int i = 0; i < altTemp.size(); i++){
+							innerHashMap = altTemp.get(i);
+							String previous_send = null;
+							for(String message : innerHashMap.keySet()){
+								previous_send = innerHashMap.get(message).split("#")[1];
+							}
+							if(previous_send.equals(send)){
+								innerHashMap.put(messageId, send + "#" + recv);
+							}
+						}
+					}
+				}
+			}
+
+			if(isBreak){
+				for(int s = 0; s < altTemp.size(); s++){
+					LinkedHashMap<String, String> innerHashMap = altTemp.get(s);
+					final_scenarios.add(innerHashMap);
+				}
+			}
+			else{
+				for(int s = 0; s < altTemp.size(); s++){
+					LinkedHashMap<String, String> innerHashMap = altTemp.get(s);
+					scenarios.add(innerHashMap);
+				}
+			}
+			altTemp.clear();
+			//System.out.println(scenarios);
+		}
+	}
+
 	public static void generateScenarios(){
 		/*
 		 * Construct Scenarios
 		 */
 
-		ArrayList<String> visited = new ArrayList<String>();
+		for(int i = 0; i < fragmentMap.size(); i++){
+			String message = (String) fragmentMap.keySet().toArray()[i];
+			String[] message_list = message.split("#");
 
-		boolean finish = false;
-		Map.Entry<String,LinkedHashMap<String, String>> entry=fragmentMap.entrySet().iterator().next();
-		
-		String messageId = entry.getKey();
-		LinkedHashMap<String, String> value = entry.getValue();
-				
-		visited.add(messageId);
-		while(!finish){
-			String send_class = value.get("Send");
-			String recv_class = value.get("Recv");
-			LinkedHashMap<String, String> innerHashMap = new LinkedHashMap<String, String>();
-			innerHashMap.put(messageId, send_class + "$" + recv_class);
-			for(int i = 1; i < fragmentMap.size(); i++){
-				String current = (String) fragmentMap.keySet().toArray()[i];
-				
-				String curr_send = fragmentMap.get(current).get("Send");
-				String curr_recv = fragmentMap.get(current).get("Recv");
-				
-				if(!visited.contains(current)){
-					if(recv_class.equals(curr_send)){
-						innerHashMap.put(current, curr_send + "$" + curr_recv);
-						visited.add(current);
-						send_class = curr_send;
-						recv_class = curr_recv;
+			if(message_list.length == 1){
+				String messageId = message_list[0];
+				String send_class = fragmentMap.get(messageId).get("Send");
+				String recv_class = fragmentMap.get(messageId).get("Recv");
+				addMsgToScenarios(messageId, send_class, recv_class);
+			}
+			else{
+				LinkedHashMap<String, LinkedList<String>> altMap =
+						new LinkedHashMap<String, LinkedList<String>>();
+				String messageAlt = (String) fragmentMap.keySet().toArray()[i];
+				String[] messageAlt_list = message.split("#");
+				while(messageAlt_list.length >= 2){
+					String messageId = messageAlt_list[0];
+					String altStmt = messageAlt_list[1];
+					if(messageAlt_list.length == 3)
+						altStmt += "#" + messageAlt_list[2];
+					String send_class = fragmentMap.get(messageAlt).get("Send");
+					String recv_class = fragmentMap.get(messageAlt).get("Recv");
+
+					if(altMap.containsKey(altStmt)){
+						LinkedList<String> alt_messages = altMap.get(altStmt);
+						alt_messages.add(messageId + "#" + send_class + "#" + recv_class);
+						altMap.put(altStmt, alt_messages);
 					}
 					else{
-						break;
+						LinkedList<String> alt_messages = new LinkedList<String>();
+						alt_messages.add(messageId + "#" + send_class + "#" + recv_class);
+						altMap.put(altStmt, alt_messages);
 					}
+					i++;
+					messageAlt = (String) fragmentMap.keySet().toArray()[i];
+					messageAlt_list = messageAlt.split("#");
 				}
+				addAltMsgToScenarios(altMap);
+				i--;
 			}
-			scenarios.add(innerHashMap);
-			if(visited.size() == fragmentMap.size())
-				finish = true;
+		}
+		for(int s = 0; s < scenarios.size(); s++){
+			LinkedHashMap<String, String> innerHashMap = scenarios.get(s);
+			final_scenarios.add(innerHashMap);
 		}
 	}
 
-	public static void main(String[] args) throws IOException, SAXException, ParserConfigurationException {
+	private static void generateTestSuite() throws JClassAlreadyExistsException, IOException {
+		// TODO Auto-generated method stub
+		String seq="";
+
+		//HashMap<ClassName,Methods>
+		LinkedHashMap<String,String> testMap=new LinkedHashMap<String, String>();
+
+		for(int i=0;i<final_scenarios.size();i++){
+			HashMap<String, String> sequences = final_scenarios.get(i);
+			seq+="Scenario"+i+":";
+			System.out.println();
+			for ( Map.Entry<String, String> val : sequences.entrySet()) {
+				String messageFunction = val.getKey();
+				String source_destination = val.getValue();
+
+				String message=messageMap.get(messageFunction);
+				String[] s_d=source_destination.split("#");
+
+				String source= lifeLineMap.get(s_d[0]);
+				String destination=lifeLineMap.get(s_d[1]);
+				seq+=message+"@"+source+"@"+destination+",";
+				//System.out.println("Message:"+message+"Source:"+source+"Destination:"+destination);
+			}
+			seq+="#";
+		}
+
+		//System.out.println(seq);
+		JCodeModel cm = new JCodeModel();
+
+		String suites[]=seq.split("#");
+
+		String classNames[] = null;
+		for(int i=0;i<suites.length;i++){
+			classNames=suites[i].split(":");
+			for(int j=0;j<classNames.length;j++){
+				//System.out.println(classNames[j]);
+				testMap.put(classNames[0],classNames[1]);
+			}
+
+		}
+		//System.out.println(testMap);
+		JDefinedClass[] dc=new JDefinedClass[testMap.size()];
+
+		for(int s=0;s<testMap.size();s++){
+			String cName=(String) testMap.keySet().toArray()[s];
+			String[] methods=testMap.get(cName).split(",");
+
+			JMethod[] m=new JMethod[methods.length];
+			dc[s]=cm._class("test."+cName);
+
+			for(int k=0;k<methods.length;k++){
+				m[k]=dc[s].method(1, void.class, methods[k].split("@")[0]);
+				m[k].body().directStatement("//sends "+methods[k].split("@")[0]+" from class "+methods[k].split("@")[1]+" "+"to class "+methods[k].split("@")[2]+"");
+
+			}
+
+		}
+		File file = new File("./target/classes");
+		file.mkdirs();
+		cm.build(file);
+	}
+
+	private static void generateGraph() {
+		// TODO Auto-generated method stub
+		System.setProperty("org.graphstream.ui.renderer", "org.graphstream.ui.j2dviewer.J2DGraphRenderer");
+		Graph graph = new MultiGraph("Test");
+
+		graph.setStrict(false);
+
+		for(int i=0;i<final_scenarios.size();i++){
+			HashMap<String, String> sequences = final_scenarios.get(i);
+			//System.out.println(sequences);
+
+
+			graph.addNode("Start");
+			int count=1;
+
+
+			for ( Map.Entry<String, String> val : sequences.entrySet()) {
+				String messageFunction = val.getKey();
+				String source_destination = val.getValue();
+
+				String message=messageMap.get(messageFunction);
+				String[] s_d=source_destination.split("#");
+				//System.out.println(s_d[0]);
+
+				String source= "Node"+" "+lifeLineMap.get(s_d[0]);
+				String destination="Node"+" "+lifeLineMap.get(s_d[1]);
+
+				//System.out.println("Message:"+message+"Source:"+source+"Destination:"+destination);
+				graph.addNode(source);
+				graph.addNode(destination);
+				graph.addEdge(count+":"+message,source,destination);
+				count++;
+
+			}
+			org.graphstream.graph.Node start = graph.getNode(1);
+			graph.addEdge("0:Start", "Start",start.toString());
+		}
+		graph.addAttribute("ui.stylesheet", 
+				"node {shape: box;fill-color: blue, green, red;text-mode:normal;text-background-mode: plain; fill-mode: dyn-plain;text-size:15;}"
+						+ "edge {text-size:15;}");
+
+		for(Edge e:graph.getEachEdge()) {
+
+			e.addAttribute("ui.label", e.getId());
+
+		}
+		for(org.graphstream.graph.Node n:graph) {
+			//System.out.println(n.getId());
+			n.addAttribute("ui.style", "fill-color:rgba(255,0,0,128);");
+			//	n.addAttribute("ui.style", "rounded-box");
+
+			n.addAttribute("ui.label", n.getId());
+		}
+
+		graph.display();		
+
+	}
+
+	public static void main(String[] args) throws IOException, SAXException, ParserConfigurationException, JClassAlreadyExistsException {
 		// Read File
-		File inputFile = new File("./src/UMLInput/model2.uml");
+		File inputFile = new File("./src/UMLInput/model_break.uml");
 
 		// Create Document Object from XML file
 		DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
@@ -222,12 +456,15 @@ class Testing{
 		generateMessageMap(messageList);
 		generateLifelineMap(lifelineList);
 
-		
-		System.out.println(fragmentMap);
-		System.out.println(messageMap);
-		System.out.println(lifeLineMap);
+
+		//System.out.println(fragmentMap);
+		//System.out.println(messageMap);
+		//System.out.println(lifeLineMap);
 
 		//generateScenarios();
-		//System.out.println(scenarios);
+		//generateTestSuite();
+
+		//Creates visual graph
+		//generateGraph();
 	}
 }
