@@ -1,9 +1,12 @@
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -19,6 +22,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 
+import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JClassAlreadyExistsException;
 import com.sun.codemodel.JCodeModel;
 import com.sun.codemodel.JDefinedClass;
@@ -38,6 +42,7 @@ class Testing{
 	static LinkedHashMap<String, String> lifeLineMap = new LinkedHashMap<String, String>();
 	static LinkedList<LinkedHashMap<String, String>> scenarios = new LinkedList<LinkedHashMap<String, String>>();
 	static LinkedList<LinkedHashMap<String, String>> final_scenarios = new LinkedList<LinkedHashMap<String, String>>();
+	static LinkedHashMap<String, LinkedList<String>> loopHashMap = new LinkedHashMap<String, LinkedList<String>>();
 
 	public static void generateFragments(NodeList fragmentList){
 		/*
@@ -51,7 +56,7 @@ class Testing{
 				NamedNodeMap nnm = eElement.getAttributes();
 				for(int j = 0; j < nnm.getLength(); j++){
 					if(nnm.item(j).getNodeName() == "interactionOperator"){
-						System.out.println(nnm.getNamedItem("interactionOperator").getTextContent());
+						String operator = nnm.getNamedItem("interactionOperator").getTextContent();
 						NodeList operandList = nNode.getChildNodes();
 						for(int k = 0; k < operandList.getLength(); k++){
 							if(operandList.item(k).getNodeName() == "operand"){
@@ -70,17 +75,38 @@ class Testing{
 												}
 											}
 											if(!guard.equals("")){
-												for(int u = 0; u < guardList.getLength(); u++){
-													if(guardList.item(u).getNodeName() == "ownedComment"){
-														NodeList bodyList = guardList.item(u).getChildNodes();
-														for(int v = 0; v < bodyList.getLength(); v++){
-															if(bodyList.item(v).getFirstChild() != null){
-																if(bodyList.item(v).getFirstChild().getTextContent().equals("Break")){
-																	guard += "#" + "break";
+												if(operator.equals("alt")){
+													for(int u = 0; u < guardList.getLength(); u++){
+														if(guardList.item(u).getNodeName() == "ownedComment"){
+															NodeList bodyList = guardList.item(u).getChildNodes();
+															for(int v = 0; v < bodyList.getLength(); v++){
+																if(bodyList.item(v).getFirstChild() != null){
+																	if(bodyList.item(v).getFirstChild().getTextContent().equals("Break")){
+																		guard += "#" + "break";
+																	}
 																}
 															}
 														}
 													}
+												}
+												else if(operator.equals("loop")){
+													guard += "#" + "0";
+													String maxint = "0";
+													for(int u = 0; u < guardList.getLength(); u++){
+														if(guardList.item(u).getNodeName() == "maxint"){
+															Node maxInt = guardList.item(u);
+															if(maxInt.getNodeType() == Node.ELEMENT_NODE){
+																Element maxIntEle = (Element) maxInt;
+																NamedNodeMap maxIntMap = maxIntEle.getAttributes();
+																for(int y = 0; y < maxIntMap.getLength(); y++){
+																	if(maxIntMap.item(y).getNodeName() == "value"){
+																		maxint = maxIntMap.getNamedItem("value").getTextContent();
+																	}
+																}
+															}
+														}
+													}
+													guard += "#" + maxint;
 												}
 											}
 										}
@@ -270,19 +296,24 @@ class Testing{
 		for(int i = 0; i < fragmentMap.size(); i++){
 			String message = (String) fragmentMap.keySet().toArray()[i];
 			String[] message_list = message.split("#");
-
 			if(message_list.length == 1){
+				/*
+				 * Regular messages (not in alt box or loops)
+				 */
 				String messageId = message_list[0];
 				String send_class = fragmentMap.get(messageId).get("Send");
 				String recv_class = fragmentMap.get(messageId).get("Recv");
 				addMsgToScenarios(messageId, send_class, recv_class);
 			}
-			else{
+			else if(message_list.length == 2 || message_list.length == 3){
+				/*
+				 * Messages which are present in alt box
+				 */
 				LinkedHashMap<String, LinkedList<String>> altMap =
 						new LinkedHashMap<String, LinkedList<String>>();
 				String messageAlt = (String) fragmentMap.keySet().toArray()[i];
 				String[] messageAlt_list = message.split("#");
-				while(messageAlt_list.length >= 2){
+				while(messageAlt_list.length == 2 || messageAlt_list.length == 3){
 					String messageId = messageAlt_list[0];
 					String altStmt = messageAlt_list[1];
 					if(messageAlt_list.length == 3)
@@ -307,6 +338,28 @@ class Testing{
 				addAltMsgToScenarios(altMap);
 				i--;
 			}
+			else{
+				/*
+				 * Messages which are present in loops
+				 */
+				String messageId = message_list[0];
+				String send_class = fragmentMap.get(message).get("Send");
+				String recv_class = fragmentMap.get(message).get("Recv");
+				addMsgToScenarios(messageId, send_class, recv_class);
+
+				// Insert loop messages into loop HashMap
+				String key = message_list[1] + "#" + message_list[2] + "#" + message_list[3];
+				LinkedList<String> values = null;
+				if(loopHashMap.containsKey(key)){
+					values = loopHashMap.get(key);
+					values.add(messageId);
+				}
+				else{
+					values = new LinkedList<String>();
+					values.add(messageId);
+				}
+				loopHashMap.put(key, values);
+			}
 		}
 		for(int s = 0; s < scenarios.size(); s++){
 			LinkedHashMap<String, String> innerHashMap = scenarios.get(s);
@@ -315,32 +368,65 @@ class Testing{
 	}
 
 	private static void generateTestSuite() throws JClassAlreadyExistsException, IOException {
-		// TODO Auto-generated method stub
 		String seq="";
 
-		//HashMap<ClassName,Methods>
 		LinkedHashMap<String,String> testMap=new LinkedHashMap<String, String>();
 
 		for(int i=0;i<final_scenarios.size();i++){
 			HashMap<String, String> sequences = final_scenarios.get(i);
+			System.out.println(sequences);
 			seq+="Scenario"+i+":";
-			System.out.println();
-			for ( Map.Entry<String, String> val : sequences.entrySet()) {
-				String messageFunction = val.getKey();
-				String source_destination = val.getValue();
+			Iterator<Entry<String, String>> it=sequences.entrySet().iterator();
 
-				String message=messageMap.get(messageFunction);
-				String[] s_d=source_destination.split("#");
+			while(it.hasNext()){
+				Map.Entry<String, String> keyVal=(Map.Entry<String, String>) it.next();
+				String messageFunction = (String) keyVal.getKey();
+				String source_destination = (String) keyVal.getValue();
 
-				String source= lifeLineMap.get(s_d[0]);
-				String destination=lifeLineMap.get(s_d[1]);
-				seq+=message+"@"+source+"@"+destination+",";
-				//System.out.println("Message:"+message+"Source:"+source+"Destination:"+destination);
+				//String[] messageSplit=messageFunction.split("#");
+				LinkedList<String> messages=null;
+				String loop=null;
+
+				for(String loop_name: loopHashMap.keySet()){
+					messages=loopHashMap.get(loop_name);
+
+					if(messages.contains(messageFunction)){
+						loop=loop_name;
+						break;
+					}
+				}
+
+				if(loop==null){
+					String message=messageMap.get(messageFunction);
+					String[] s_d=source_destination.split("#");
+
+					String source= lifeLineMap.get(s_d[0]);
+					String destination=lifeLineMap.get(s_d[1]);
+					seq+=message+"@"+source+"@"+destination+",";
+					//System.out.println("Message:"+message+"Source:"+source+"Destination:"+destination);
+				}
+				else{
+					System.out.println(loop);
+					String[] loopContents=loop.split("#");
+					for(String msg : messages){
+						String message=messageMap.get(msg);
+						source_destination = sequences.get(msg);
+						String[] s_d=source_destination.split("#");
+
+						String source= lifeLineMap.get(s_d[0]);
+						String destination=lifeLineMap.get(s_d[1]);
+						seq+=message+"@"+source+"@"+destination+"@"+loopContents[0]+"@"+ loopContents[1]+"@"+loopContents[2]
+								+"@"+messages.size()+",";
+					}
+					for(int j=0;j<messages.size() - 1;j++){
+						it.next();
+					}
+				}
 			}
+			System.out.println(seq);
 			seq+="#";
 		}
 
-		//System.out.println(seq);
 		JCodeModel cm = new JCodeModel();
 
 		String suites[]=seq.split("#");
@@ -354,20 +440,36 @@ class Testing{
 			}
 
 		}
-		//System.out.println(testMap);
+		
 		JDefinedClass[] dc=new JDefinedClass[testMap.size()];
 
 		for(int s=0;s<testMap.size();s++){
+			
 			String cName=(String) testMap.keySet().toArray()[s];
 			String[] methods=testMap.get(cName).split(",");
-
-			JMethod[] m=new JMethod[methods.length];
+			
 			dc[s]=cm._class("test."+cName);
 
+			JMethod unitTestMethod=dc[s].method(1, void.class,"testMethods");
+			unitTestMethod.annotate(cm.ref("Test"));
 			for(int k=0;k<methods.length;k++){
-				m[k]=dc[s].method(1, void.class, methods[k].split("@")[0]);
-				m[k].body().directStatement("//sends "+methods[k].split("@")[0]+" from class "+methods[k].split("@")[1]+" "+"to class "+methods[k].split("@")[2]+"");
-
+				if(methods[k].split("@").length == 3){
+					unitTestMethod.body().directStatement("//sends "+methods[k].split("@")[0]+" from class "+methods[k].split("@")[1]+" "+" to class "+methods[k].split("@")[2]+"");
+					unitTestMethod.body().invoke(methods[k].split("@")[0]);
+				}
+				else{
+					String mSplit[]= methods[k].split("@");
+					unitTestMethod.body().directStatement("/* Next " + mSplit[mSplit.length - 1] +
+							" messages loops for " +mSplit[mSplit.length - 2] + " times */");
+					
+					for(int u = k; u <= Integer.parseInt(mSplit[mSplit.length - 1]); u++){
+						unitTestMethod.body().directStatement("//sends "+methods[k].split("@")[0]+""
+								+ "from class "+methods[k].split("@")[1]+" "+"to class "+methods[k].split("@")[2]+"");
+						unitTestMethod.body().invoke(methods[k].split("@")[0]);
+						k++;
+					}
+					k--;
+				}
 			}
 
 		}
@@ -436,7 +538,7 @@ class Testing{
 
 	public static void main(String[] args) throws IOException, SAXException, ParserConfigurationException, JClassAlreadyExistsException {
 		// Read File
-		File inputFile = new File("./src/UMLInput/model_break.uml");
+		File inputFile = new File("./src/UMLInput/model_loop.uml");
 
 		// Create Document Object from XML file
 		DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
@@ -461,10 +563,11 @@ class Testing{
 		//System.out.println(messageMap);
 		//System.out.println(lifeLineMap);
 
-		//generateScenarios();
-		//generateTestSuite();
+		generateScenarios();
+		//System.out.println(loopHashMap);
+		generateTestSuite();
 
 		//Creates visual graph
-		//generateGraph();
+		generateGraph();
 	}
 }
