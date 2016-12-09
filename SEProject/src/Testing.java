@@ -1,6 +1,8 @@
+import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -14,6 +16,9 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.graphstream.graph.Edge;
 import org.graphstream.graph.Graph;
 import org.graphstream.graph.implementations.MultiGraph;
+import org.graphstream.ui.swingViewer.ViewPanel;
+import org.graphstream.ui.view.View;
+import org.graphstream.ui.view.Viewer;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.NodeList;
@@ -93,7 +98,7 @@ class Testing{
 												}
 												else if(operator.equals("loop")){
 													guard += "#" + "0";
-													String maxint = "0";
+													String maxint = "1";
 													for(int u = 0; u < guardList.getLength(); u++){
 														if(guardList.item(u).getNodeName() == "maxint"){
 															Node maxInt = guardList.item(u);
@@ -286,7 +291,6 @@ class Testing{
 				}
 			}
 			altTemp.clear();
-			//System.out.println(scenarios);
 		}
 	}
 
@@ -296,6 +300,7 @@ class Testing{
 		 */
 
 		for(int i = 0; i < fragmentMap.size(); i++){
+			boolean end=false;
 			String message = (String) fragmentMap.keySet().toArray()[i];
 			String[] message_list = message.split("#");
 			if(message_list.length == 1){
@@ -334,10 +339,18 @@ class Testing{
 						altMap.put(altStmt, alt_messages);
 					}
 					i++;
-					messageAlt = (String) fragmentMap.keySet().toArray()[i];
-					messageAlt_list = messageAlt.split("#");
+					if(i>=fragmentMap.size()){
+						end=true;
+						break;
+					}
+					else{
+						messageAlt = (String) fragmentMap.keySet().toArray()[i];
+						messageAlt_list = messageAlt.split("#");
+					}
 				}
 				addAltMsgToScenarios(altMap);
+				if(end)
+					break;
 				i--;
 			}
 			else{
@@ -376,7 +389,7 @@ class Testing{
 
 		for(int i=0;i<final_scenarios.size();i++){
 			HashMap<String, String> sequences = final_scenarios.get(i);
-			System.out.println(sequences);
+			//System.out.println(sequences);
 			seq+="Scenario"+i+":";
 			Iterator<Entry<String, String>> it=sequences.entrySet().iterator();
 
@@ -385,7 +398,6 @@ class Testing{
 				String messageFunction = (String) keyVal.getKey();
 				String source_destination = (String) keyVal.getValue();
 
-				//String[] messageSplit=messageFunction.split("#");
 				LinkedList<String> messages=null;
 				String loop=null;
 
@@ -405,10 +417,8 @@ class Testing{
 					String source= lifeLineMap.get(s_d[0]);
 					String destination=lifeLineMap.get(s_d[1]);
 					seq+=message+"@"+source+"@"+destination+",";
-					//System.out.println("Message:"+message+"Source:"+source+"Destination:"+destination);
 				}
 				else{
-					System.out.println(loop);
 					String[] loopContents=loop.split("#");
 					for(String msg : messages){
 						String message=messageMap.get(msg);
@@ -425,12 +435,12 @@ class Testing{
 					}
 				}
 			}
-			System.out.println(seq);
+			//System.out.println(seq);
 			seq+="#";
 		}
 
 		JCodeModel cm = new JCodeModel();
-		
+
 		String suites[]=seq.split("#");
 
 		String classNames[] = null;
@@ -442,19 +452,19 @@ class Testing{
 			}
 
 		}
-		
+
 		JDefinedClass[] dc=new JDefinedClass[testMap.size()];
 
 		for(int s=0;s<testMap.size();s++){
-			
+
 			String cName=(String) testMap.keySet().toArray()[s];
 			String[] methods=testMap.get(cName).split(",");
-			
+
 			dc[s]=cm._class("test."+cName);
 
 			JMethod unitTestMethod=dc[s].method(1, void.class,"testMethods");
 			unitTestMethod.annotate(cm.ref("Test"));
-			
+
 			for(int k=0;k<methods.length;k++){
 				if(methods[k].split("@").length == 3){
 					unitTestMethod.body().directStatement("//sends "+methods[k].split("@")[0]+" from class "+methods[k].split("@")[1]+" "+" to class "+methods[k].split("@")[2]+"");
@@ -464,27 +474,27 @@ class Testing{
 					String mSplit[]= methods[k].split("@");
 					unitTestMethod.body().directStatement("/* Next " + mSplit[mSplit.length - 1] +
 							" messages loops for " +mSplit[mSplit.length - 2] + " times */");
-					
-					
+
+
 					unitTestMethod.body().directStatement("int index=0;");
 					JExpression test = JExpr.ref("index").lt(JExpr.lit(Integer.valueOf(mSplit[mSplit.length - 2])));	
 					JWhileLoop whileLoop=unitTestMethod.body()._while(test);
 					JBlock whileBody = whileLoop.body();
-					
+
 					for(int u = k; u <= Integer.parseInt(mSplit[mSplit.length - 1]); u++){
-						
-						
+
+
 						whileBody.directStatement("//sends "+methods[k].split("@")[0]+""
 								+ "from class "+methods[k].split("@")[1]+" "+"to class "+methods[k].split("@")[2]+"");
 						whileBody.invoke(methods[k].split("@")[0]);
-						
-						
-						
+
+
+
 						k++;
-						
+
 					}
 					whileBody.directStatement("index++;");
-					
+
 					k--;
 				}
 			}
@@ -503,16 +513,23 @@ class Testing{
 			int number=i+1;
 			graph[i]=new MultiGraph("final_scenarios"+number);
 			graph[i].setStrict(false);
-			
+
 			HashMap<String, String> sequences = final_scenarios.get(i);
 			//System.out.println(sequences);
 
 			graph[i].addNode("Start");
 			int count=1;
-
+			HashMap<Integer,String> loopSet=new HashMap<Integer,String>();
 			for (Map.Entry<String, String> val : sequences.entrySet()) {
 				String messageFunction = val.getKey();
 				String source_destination = val.getValue();
+
+				for(String loop: loopHashMap.keySet()){
+					LinkedList<String> loopList=loopHashMap.get(loop);
+					if(loopList.contains(messageFunction)){
+						loopSet.put(count,loop.split("#")[2]);
+					}
+				}
 
 				String message=messageMap.get(messageFunction);
 				String[] s_d=source_destination.split("#");
@@ -531,16 +548,30 @@ class Testing{
 			org.graphstream.graph.Node start = graph[i].getNode(1);
 			graph[i].addEdge("0:Start", "Start",start.toString());
 
+
 			graph[i].addAttribute("ui.stylesheet", 
-					"node {shape: box;fill-color: blue, green, red;text-mode:normal;text-background-mode: plain; fill-mode: dyn-plain;text-size:15;}"
-							+ "edge {text-size:15;}");
+					"node {stroke-mode: plain; fill-color: white;shape: rounded-box;size-mode: "
+							+ "fit;text-size:15; padding: 4px, 4px; fill-mode:dyn-plain;}"
+							+ "edge {text-size:15;fill-mode:dyn-plain;}");
 
+			int edgeCount=0;
 			for(Edge e:graph[i].getEachEdge()) {
+				edgeCount++;
+				
+				if(loopSet.containsKey(edgeCount)){
+					e.addAttribute("ui.color", Color.RED);
+					
+					e.addAttribute("ui.label", e.getId()+": LOOP("+loopSet.get(edgeCount)+")");
+				}
+				else{
+					e.addAttribute("ui.label", e.getId());
+					e.addAttribute("ui.stylesheet","edge {fill-color:red;}");
+				}
 
-				e.addAttribute("ui.label", e.getId());
 
 			}
 			for(org.graphstream.graph.Node n:graph[i]) {
+
 				//System.out.println(n.getId());
 				n.addAttribute("ui.style", "fill-color:rgba(255,0,0,128);");
 				//	n.addAttribute("ui.style", "rounded-box");
@@ -548,26 +579,31 @@ class Testing{
 				n.addAttribute("ui.label", n.getId());
 			}
 
-			graph[i].display();		
-			//System.out.println(graph[i].toString());
+			//graph[i].display();		
+
+			Viewer viewer = graph[i].display();	
+			View view = viewer.getDefaultView();
+			//	view.getCamera().setViewPercent(1;
+
+
 		}
 	}
 
 	public static boolean deleteDirectory(File directory) {
-	    if(directory.exists()){
-	        File[] files = directory.listFiles();
-	        if(null!=files){
-	            for(int i=0; i<files.length; i++) {
-	                if(files[i].isDirectory()) {
-	                    deleteDirectory(files[i]);
-	                }
-	                else {
-	                    files[i].delete();
-	                }
-	            }
-	        }
-	    }
-	    return(directory.delete());
+		if(directory.exists()){
+			File[] files = directory.listFiles();
+			if(null!=files){
+				for(int i=0; i<files.length; i++) {
+					if(files[i].isDirectory()) {
+						deleteDirectory(files[i]);
+					}
+					else {
+						files[i].delete();
+					}
+				}
+			}
+		}
+		return(directory.delete());
 	}
 	public static void main(String[] args) throws IOException, SAXException, ParserConfigurationException, JClassAlreadyExistsException {
 		// Read File
@@ -595,13 +631,15 @@ class Testing{
 		//System.out.println(fragmentMap);
 		//System.out.println(messageMap);
 		//System.out.println(lifeLineMap);
-
+		
 		generateScenarios();
-		//System.out.println(loopHashMap);
+		
+		System.out.println(loopHashMap);
+		//System.out.println(final_scenarios);
 		File file = new File("target");
 		deleteDirectory(file);
 		generateTestSuite();
-		
+
 		//Creates visual graph
 		generateGraph();
 	}
