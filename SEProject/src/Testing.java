@@ -21,10 +21,14 @@ import org.w3c.dom.Node;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 
+import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JClassAlreadyExistsException;
 import com.sun.codemodel.JCodeModel;
 import com.sun.codemodel.JDefinedClass;
+import com.sun.codemodel.JExpr;
+import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JMethod;
+import com.sun.codemodel.JWhileLoop;
 
 class Testing{
 
@@ -426,7 +430,7 @@ class Testing{
 		}
 
 		JCodeModel cm = new JCodeModel();
-
+		
 		String suites[]=seq.split("#");
 
 		String classNames[] = null;
@@ -450,6 +454,7 @@ class Testing{
 
 			JMethod unitTestMethod=dc[s].method(1, void.class,"testMethods");
 			unitTestMethod.annotate(cm.ref("Test"));
+			
 			for(int k=0;k<methods.length;k++){
 				if(methods[k].split("@").length == 3){
 					unitTestMethod.body().directStatement("//sends "+methods[k].split("@")[0]+" from class "+methods[k].split("@")[1]+" "+" to class "+methods[k].split("@")[2]+"");
@@ -460,12 +465,26 @@ class Testing{
 					unitTestMethod.body().directStatement("/* Next " + mSplit[mSplit.length - 1] +
 							" messages loops for " +mSplit[mSplit.length - 2] + " times */");
 					
+					
+					unitTestMethod.body().directStatement("int index=0;");
+					JExpression test = JExpr.ref("index").lt(JExpr.lit(Integer.valueOf(mSplit[mSplit.length - 2])));	
+					JWhileLoop whileLoop=unitTestMethod.body()._while(test);
+					JBlock whileBody = whileLoop.body();
+					
 					for(int u = k; u <= Integer.parseInt(mSplit[mSplit.length - 1]); u++){
-						unitTestMethod.body().directStatement("//sends "+methods[k].split("@")[0]+""
+						
+						
+						whileBody.directStatement("//sends "+methods[k].split("@")[0]+""
 								+ "from class "+methods[k].split("@")[1]+" "+"to class "+methods[k].split("@")[2]+"");
-						unitTestMethod.body().invoke(methods[k].split("@")[0]);
+						whileBody.invoke(methods[k].split("@")[0]);
+						
+						
+						
 						k++;
+						
 					}
+					whileBody.directStatement("index++;");
+					
 					k--;
 				}
 			}
