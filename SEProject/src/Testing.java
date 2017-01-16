@@ -440,14 +440,14 @@ class Testing{
 			}
 
 		}
-		
+
 		JDefinedClass[] dc=new JDefinedClass[testMap.size()];
 
 		for(int s=0;s<testMap.size();s++){
-			
+
 			String cName=(String) testMap.keySet().toArray()[s];
 			String[] methods=testMap.get(cName).split(",");
-			
+
 			dc[s]=cm._class("test."+cName);
 
 			JMethod unitTestMethod=dc[s].method(1, void.class,"testMethods");
@@ -461,7 +461,7 @@ class Testing{
 					String mSplit[]= methods[k].split("@");
 					unitTestMethod.body().directStatement("/* Next " + mSplit[mSplit.length - 1] +
 							" messages loops for " +mSplit[mSplit.length - 2] + " times */");
-					
+
 					for(int u = k; u <= Integer.parseInt(mSplit[mSplit.length - 1]); u++){
 						unitTestMethod.body().directStatement("//sends "+methods[k].split("@")[0]+""
 								+ "from class "+methods[k].split("@")[1]+" "+"to class "+methods[k].split("@")[2]+"");
